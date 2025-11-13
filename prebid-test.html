@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Prebid + Start.io Test</title>
+
+    <!-- Use your built or CDN Prebid -->
+    <script async src="./prebid.js"></script>
+
+    <style>
+        body { font-family: sans-serif; padding: 20px; }
+        #ad-slot {
+            width: 300px;
+            height: 250px;
+            border: 1px dashed #888;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+<h2>Prebid Test: Start.io Adapter</h2>
+
+<div id="ad-slot">Ad will appear here</div>
+
+<script>
+    var pbjs = pbjs || {};
+    pbjs.que = pbjs.que || [];
+
+    var adUnits = [
+        {
+            code: 'ad-slot',
+            mediaTypes: {
+                banner: {
+                    sizes: [[300, 250], [728, 90]]
+                }
+            },
+            bids: [
+                {
+                    bidder: 'startio',
+                    params: {
+                        publisherId: '123456789', // replace with your Start.io publisherId
+                        testAdsEnabled: true
+                    }
+                }
+            ]
+        }
+    ];
+
+    pbjs.que.push(function() {
+        pbjs.addAdUnits(adUnits);
+        pbjs.requestBids({
+            bidsBackHandler: function(bidResponses) {
+                console.log('Bid responses:', bidResponses);
+                var bids = bidResponses['ad-slot']?.bids;
+                if (bids && bids.length > 0) {
+                    var winningBid = bids[0];
+                    console.log('Winning bid:', winningBid);
+
+                    // ✅ Create an iframe and render inside it
+                    const iframe = document.createElement('iframe');
+                    iframe.width = winningBid.width || 300;
+                    iframe.height = winningBid.height || 250;
+                    iframe.style.border = 'none';
+                    iframe.style.display = 'block';
+                    iframe.id = 'pb-ad-iframe';
+
+                    const adSlot = document.getElementById('ad-slot');
+                    adSlot.innerHTML = ''; // clear placeholder text
+                    adSlot.appendChild(iframe);
+
+                    const iframeDoc = iframe.contentWindow.document;
+                    iframeDoc.open();
+                    iframeDoc.write(`
+            <html><head></head><body style="margin:0;padding:0;">
+              <script>
+                window.pbjs = window.parent.pbjs;
+                pbjs.renderAd(document, '${winningBid.adId}');
+              <\/script>
+            </body></html>
+          `);
+                    iframeDoc.close();
+                } else {
+                    document.getElementById('ad-slot').textContent = 'No bids received 😞';
+                }
+            }
+        });
+    });
+</script>
+</body>
+</html>
